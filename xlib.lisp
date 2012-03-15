@@ -32,12 +32,20 @@
 (defun xlib-face-background (colormap face)
   (xlib-face-color colormap face :background))
 
-(defun xlib-face-font-select (context face &optional (n 0))
+(defun xlib-face-simple-resolve-font (display face &optional (n 0))
   (unless (> n 14)
     (handler-case (xlib:open-font
-		   (xlib:gcontext-display context)
+		   display
 		   (xlib-face-font-name face n))
-      (error () (xlib-face-font-select context face (1+ n))))))
+      (error () (xlib-face-simple-resolve-font display face (1+ n))))))
+  
+(defvar *xlib-face-font-solver* #'xlib-face-simple-resolve-font
+  "Function used by the xlib sstring routines for face->font resolution.")
+
+(defun xlib-face-font-select (context face)
+  (funcall (print *xlib-face-font-solver*)
+	   (xlib:gcontext-display context)
+	   face))
 
 (defun xlib-face-context-attributes (context colormap face)
   (let ((foreground `(xlib-face-foreground ,colormap ,face))
@@ -62,7 +70,8 @@
 
 (defface default
   :family "helvetica"
-  :pixel-size 14
+  :pixel-size 12
+  :weight "medium"
   :slant "r")
 
 (defface fixed
@@ -79,7 +88,6 @@
 
 (defface prova
   :foreground "magenta"
-  :pixel-size 14
   :inherit '(fixed bold))
 
 (export 'xlib-draw-string)

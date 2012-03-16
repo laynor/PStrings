@@ -73,12 +73,20 @@
 	     face2)
     face))
 
+
+(defun merge-face-ancestors-1 (face)
+  (let ((face (reduce #'merge-faces
+		      (cons face (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
+					  (face-property face :inherit))))))
+    (remhash :inherit face)
+    face))
 (defun merge-face-ancestors (face)
   (let ((face (reduce #'merge-faces
-		      (cons face (append
-				  (mapcar (compose #'merge-face-ancestors #'lookup-face)
-					  (face-property face :inherit))
-				  (list (lookup-face :default)))))))
+		      (cons face
+			    (append
+			     (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
+				     (face-property face :inherit))
+			     (list (lookup-face :default)))))))
     (remhash :inherit face)
     face))
 

@@ -72,6 +72,18 @@
   (cons (sstring-string sstring)
 	(sspp (sstring-proplist sstring) s e p v)))
 
+(defun sstring-put-properties (sstring s e &rest properties &key &allow-other-keys)
+  (cond ((null properties) sstring)
+	(t (apply #'sstring-put-properties (sstring-put-property sstring s e
+								 (first properties)
+								 (second properties))
+		  s e 
+		  (cddr properties)))))
+
+(defun sstring-propertize (sstring &rest properties &key &allow-other-keys)
+  (apply #'sstring-put-properties sstring 0 (sstring-length sstring)
+	 properties))
+
 (defun sstring-get-properties (sstring pos)
   (cddr (find-if #'(lambda (slice)
 		     (and (<= (first slice) pos)
@@ -162,6 +174,22 @@
 			     (sstring-get-properties s2 i))
 		 res)))))
 
+(defun sstring-concat-2 (s1 s2)
+  (let* ((str (concatenate 'string
+			   (sstring-string s1)
+			   (sstring-string s2)))
+	 (len (sstring-length s1))
+	 (plist (append (sstring-proplist s1)
+			(mapcar (lambda (el)
+				  (destructuring-bind (s e . p) el
+				    `(,(+ s len) ,(+ e len) . ,p)))
+				(sstring-proplist s2)))))
+    (cons str plist)))
+				       
+(defun sstring-concat (&rest sstrings)
+  (reduce #'sstring-concat-2 sstrings))
+
+;;;; Exports 
 (export 'sstring)
 (export 'sstring-do)
 (export 'sstring-do-slices)
@@ -173,6 +201,7 @@
 (export 'sstring-length)
 (export 'sstring=)
 
+;;;; Tests
 (def-suite sstring
     :description "Checking sstring related functions")
 

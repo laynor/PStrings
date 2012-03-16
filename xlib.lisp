@@ -1,5 +1,5 @@
 (ql:quickload "clx")
-(in-package :sstring)
+(in-package :pstring)
 
 
 (defun xlib-font-name (n &key (foundry "*") (family "*") (weight "*") (slant "*")
@@ -40,7 +40,7 @@
       (error () (xlib-face-simple-resolve-font display face (1+ n))))))
   
 (defvar *xlib-face-font-solver* #'xlib-face-simple-resolve-font
-  "Function used by the xlib sstring routines for face->font resolution.")
+  "Function used by the xlib pstring routines for face->font resolution.")
 
 (defun xlib-face-font-select (context face)
   (funcall (print *xlib-face-font-solver*)
@@ -60,12 +60,14 @@
 	 (xlib:with-gcontext (context ,@(xlib-face-context-attributes context colormap f))
 	   ,@body)))))
     
-(defun xlib-draw-sstring (ss window context x y)
-  (sstring-do-slices (ss sub props)
+(defun xlib-draw-pstring (ss window context x y &optional draw-image-glyphs-p)
+  (pstring-do-slices (ss sub props)
     (let* ((fname (getf props :face))
 	   (face (lookup-face (or fname :default))))
       (xlib-with-face-attributes (face context (xlib:window-colormap window))
-	(xlib:draw-glyphs window context x y sub)
+	(if draw-image-glyphs-p
+	    (xlib:draw-image-glyphs window context x y sub)
+	    (xlib:draw-glyphs window context x y sub))
 	(incf x (xlib:text-extents context sub))))))
 
 (defface default

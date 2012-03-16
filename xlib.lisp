@@ -69,6 +69,7 @@
 	(incf x (xlib:text-extents context sub))))))
 
 (defface default
+  :foreground "white"
   :family "helvetica"
   :pixel-size 12
   :weight "medium"
@@ -86,8 +87,5 @@
 (defface bold
   :weight "bold")
 
-(defface prova
-  :foreground "magenta"
-  :inherit '(fixed bold))
 
 (export 'xlib-draw-string)

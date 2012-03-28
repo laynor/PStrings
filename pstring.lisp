@@ -133,7 +133,7 @@
     (let* ((i (or index (gensym)))
 	   (s (gensym)))
       `(let ((,s ,pstring))
-	 (dotimes (,i (pstring::pstring-length ,pstring) ,result)
+	 (dotimes (,i (pstrings::pstring-length ,pstring) ,result)
 	   (let ,(pstring-do-bindings pstring i char props)
 	     ,@body))))))
   
@@ -157,8 +157,8 @@
 	       (,e (second ,sidxs) (second ,sidxs)))
 	      ((null (cdr ,sidxs)) ,result)
 	   (let* ((,ssub (pstring-substring ,pstring ,s ,e))
-		  (,substring (car ,ssub))
-		  (,props (cddr (cadr ,ssub)))) 
+		  (,substring (pstring-string ,ssub))
+		  (,props (cddr (car (pstring-proplist ,ssub)))) )
 	     ,@body))))))
 
 (defun pstring= (pstring1 pstring2)
@@ -198,8 +198,10 @@
 (export 'pstring-get-property)
 (export 'pstring-put-property)
 (export 'pstring-put-properties)
+(export 'pstring-propertize)
 (export 'pstring-elt)
 (export 'pstring-substring)
+(export 'pstring-concat)
 (export 'pstring-length)
 (export 'pstring=)
 

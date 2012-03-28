@@ -1,5 +1,4 @@
-(ql:quickload "clx")
-(in-package :pstring)
+(in-package :pstrings)
 
 
 (defun xlib-font-name (n &key (foundry "*") (family "*") (weight "*") (slant "*")
@@ -43,13 +42,13 @@
   "Function used by the xlib pstring routines for face->font resolution.")
 
 (defun xlib-face-font-select (context face)
-  (funcall (print *xlib-face-font-solver*)
+  (funcall *xlib-face-font-solver*
 	   (xlib:gcontext-display context)
 	   face))
 
 (defun xlib-face-context-attributes (context colormap face)
-  (let ((foreground `(xlib-face-foreground ,colormap ,face))
-	(background `(xlib-face-background ,colormap ,face))
+  (let ((foreground `(and ,colormap (xlib-face-foreground ,colormap ,face)))
+	(background `(and ,colormap (xlib-face-background ,colormap ,face)))
 	(font `(xlib-face-font-select ,context ,face)))
     (list :foreground foreground :background background :font font)))
 
@@ -57,7 +56,7 @@
   (once-only (face context colormap)
     (with-gensyms (f)
       `(let ((,f (and ,face (merge-face-ancestors (copy-face ,face)))))
-	 (xlib:with-gcontext (context ,@(xlib-face-context-attributes context colormap f))
+	 (xlib:with-gcontext (,context ,@(xlib-face-context-attributes context colormap f))
 	   ,@body)))))
     
 (defun xlib-draw-pstring (ss window context x y &optional draw-image-glyphs-p)
@@ -69,6 +68,24 @@
 	    (xlib:draw-image-glyphs window context x y sub)
 	    (xlib:draw-glyphs window context x y sub))
 	(incf x (xlib:text-extents context sub))))))
+
+(defun xlib-pstring-extents (gcontext pstring)
+  (let ((width 0) (height 0) (ascent 0) left (right 0))
+    (pstring-do-slices (pstring sub props)
+      (let* ((fname (getf props :face))
+	     (face (lookup-face (or fname :default))))
+	(xlib-with-face-attributes (face gcontext nil)
+	  (print (multiple-value-list (xlib:text-extents gcontext sub)))
+	  (multiple-value-bind (w a d l r fa fd)
+	      (xlib:text-extents gcontext sub)
+	    (setf left (or left l))
+	    (setf right r)
+	    (incf width w)
+	    (setf ascent (max ascent a))
+	    (setf height (max height (+ fa fd)))))))
+    (values width height ascent )))
+	    
+      
 
 (defface default
   :foreground "white"
@@ -90,4 +107,5 @@
   :weight "bold")
 
 
-(export 'xlib-draw-string)
+(export 'xlib-draw-pstring)
+(export 'xlib-pstring-extents)

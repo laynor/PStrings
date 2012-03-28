@@ -2,6 +2,7 @@
 ;;; Get/Set a property of a face
 ;;; Merge inherited faces
 ;;; Assoociate face with names
+(in-package :pstrings)
 
 (defparameter *face-hash* (make-hash-table :test #'equal))
 

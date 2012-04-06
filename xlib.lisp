@@ -75,7 +75,7 @@
       (let* ((fname (getf props :face))
 	     (face (lookup-face (or fname :default))))
 	(xlib-with-face-attributes (face gcontext nil)
-	  (print (multiple-value-list (xlib:text-extents gcontext sub)))
+	  (multiple-value-list (xlib:text-extents gcontext sub))
 	  (multiple-value-bind (w a d l r fa fd)
 	      (xlib:text-extents gcontext sub)
 	    (setf left (or left l))
@@ -84,28 +84,6 @@
 	    (setf ascent (max ascent a))
 	    (setf height (max height (+ fa fd)))))))
     (values width height ascent )))
-	    
-      
-
-(defface default
-  :foreground "white"
-  :family "helvetica"
-  :pixel-size 12
-  :weight "medium"
-  :slant "r")
-
-(defface fixed
-  :family "terminus")
-
-(defface italic
-  :slant "i")
-
-(defface oblique
-  :slant "o")
-
-(defface bold
-  :weight "bold")
-
 
 (export 'xlib-draw-pstring)
 (export 'xlib-pstring-extents)

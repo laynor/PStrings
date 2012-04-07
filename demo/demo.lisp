@@ -2,11 +2,7 @@
 (declaim (optimize (speed 0) (debug 3)))
 
 (require :clx)
-(load "../pstring.lisp")
-(load "../faces.lisp")
-(load "../xlib.lisp")
-
-
+(require :pstrings-xlib)
 (defpackage :pstring-demo
   (:use #:cl #:pstrings))
 
@@ -14,9 +10,17 @@
 
 (defface :default
   :family "fixed"
-  :pixel-size 14
+  :pixel-size 12
+  :weight "medium"
   :foreground "white"
   :slant "r")
+
+(defface :bold
+  :weight "bold")
+(defface :oblique
+  :slant "o")
+(defface :italic
+  :slant "i")
 
 (defface :title1
   :pixel-size 24
@@ -31,7 +35,6 @@
 
 (defface :emph
   :inherit '(:italic))
-
 (defface :button
   :foreground "red"
   :family "helvetica"
@@ -116,8 +119,8 @@
 				white))
 	 (gcontext (xlib:create-gcontext :drawable win))
 	 exit)
-    (setf (xlib:window-override-redirect win) :ON)
-    (setf (xlib:window-priority win) :above)
+    ;;(setf (xlib:window-override-redirect win) :ON)
+    ;; (setf (xlib:window-priority win) :above)
     (xlib:map-window win)
     (xlib:map-subwindows win)
     (loop until exit do

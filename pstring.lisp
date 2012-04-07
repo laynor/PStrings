@@ -1,28 +1,45 @@
-(ql:quickload "fiveam")
-(ql:quickload "alexandria")
+;;;; pstring.lisp --- 
+;;; 
+;;; Filename: pstring.lisp
+;;; Description: Core code for propertized string
+;;; Author: Alessandro Piras
+;;; Maintainer: 
+;;; Created: Fri Apr  6 18:40:55 2012 (+0200)
+;;; URL: http://www.github.com/laynor/PStrings
+;;; Keywords: strings, emacs
+;;; Compatibility: 
+;;; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 
+;;;; Commentary: 
+;;;  An incomplete and somewhat clumsy implementation of propertized
+;;;  strings in Common Lisp.
+;;; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 
+;;;; Change Log:
+;;;  
+;;; 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; 
+;;;; Code:
 
-(defpackage :pstrings
-  (:use #:cl #:alexandria
-	#:fiveam))
+
+
 (in-package :pstrings)
 
-;;; pstring-put-property (pstring start end prop value)
-;;; pstring-get-properties (pstring pos)
-;;; pstring-get-property (pstring pos prop)
-
-;; (pstring "asdf" '(0 3 :face myface))
-;; pstring representations) (= e1 e)) ;; add prop to existing intervals) (= e1 e)) ;; add prop to existing interval
-;; 
-
+;;; PString construction function 
 (setf (symbol-function 'pstring) #'list)
 
 (defun pstring-string (pstring)
+  "Returns the string portion of PSTRING."
   (if (stringp pstring) pstring (car pstring)))
 (defun pstring-proplist (pstring)
-  (if (stringp pstring) nil
-      (cdr pstring)))
+  "Returns the property intervals of PSTRING."
+  (and (listp pstring) (cdr pstring)))
 
 (defun prop-merge (plist p v)
+  "Returns a copy of PLIST where the property P set to V."
   (let ((pl (copy-list plist)))
     (setf (getf pl p)
 	  v)
@@ -71,10 +88,15 @@
 		       (pstring-put-property-helper (cdr sprops) e1 e p v))))))))
 
 (defun pstring-put-property (pstring s e p v)
+  "Sets one property of PSTRING from S (start) to E (end).
+The fourth and fifth arguments P and V specify the property to set."
   (cons (pstring-string pstring)
 	(pstring-put-property-helper (pstring-proplist pstring) s e p v)))
 
 (defun pstring-put-properties (pstring s e &rest properties &key &allow-other-keys)
+  "Sets any number of properties of PSTRING from S (start) to E (end).
+The properties are specified as a sequence of PROPERTY VALUE pairs, like for example
+(pstring-put-properties \"asfdasdf\" 0 3 :face :myface :property value :property2 value2)."
   (cond ((null properties) pstring)
 	(t (apply #'pstring-put-properties (pstring-put-property pstring s e
 								 (first properties)
@@ -83,30 +105,38 @@
 		  (cddr properties)))))
 
 (defun pstring-propertize (pstring &rest properties &key &allow-other-keys)
+  "Sets a number of PROPERTIES of PSTRING to the specified values,
+from its beginning to its end."
   (apply #'pstring-put-properties pstring 0 (pstring-length pstring)
 	 properties))
 
 (defun pstring-get-properties (pstring pos)
+  "Returns the properties of PSTRING at position POS."
   (cddr (find-if #'(lambda (slice)
 		     (and (<= (first slice) pos)
 			  (< pos (second slice))))
 		 (pstring-proplist pstring))))
 
 (defun pstring-get-property (pstring prop pos)
+  "Returns the value of the property PROP of PSTRING at the position POS."
   (getf (pstring-get-properties pstring pos)
 	prop))
 
 
 (defun pstring-length (pstring)
+  "Returns the lenght of PSTRING."
   (length (pstring-string pstring)))
 
 (defun displace-slice (slice start end)
+  "Returns a slice with the same properties as SLICE, but with START and END relative to a possible
+substring starting at START and ending at END."
   (destructuring-bind (s e . p)
       slice
     (append (list (max 0 (- s start)) (- (min e end) start))
 	    p)))
 
 (defun pstring-substring (pstring start &optional end)
+  "Returns a substring of PSTRING, starting at START and ending at END."
   (cond ((stringp pstring)
 	 (subseq pstring start end))
 	(t (let* ((string (subseq (pstring-string pstring) start end))
@@ -122,13 +152,20 @@
 
 ;;;; Tests
 (defun pstring-elt (pstring index)
+  "Returns the character ot index INDEX of PSTRING."
   (elt (pstring-string pstring) index))
 
+;;; helper for the pstring do macro
 (defun pstring-do-bindings (pstring index char props)
   (append `((,char (pstring-elt ,pstring ,index)))
 	  (and props `((,props (pstring-get-properties ,pstring ,index))))))
 
 (defmacro pstring-do ((pstring char &optional props index result ) &body body)
+  "Iterates over the characters of PSTRING, left to right.
+CHAR is bound to the character being iterated
+PROPS is bound to a plist containing the properties defined for CHAR
+INDEX is bound to the index of the current iteration
+RESULT can be bound to a form whose result will be returned at the end of the loop."
   (once-only (pstring)
     (let* ((i (or index (gensym)))
 	   (s (gensym)))
@@ -138,6 +175,8 @@
 	     ,@body))))))
   
       
+;;; Helper for pstring-do-slices, returns a list of indexes at which
+;;; there is a change in the properties of PSTRING
 (defun pstring-slice-indexes (pstring)
   (remove-duplicates
    (append '(0)
@@ -147,6 +186,10 @@
 	   (list (pstring-length pstring)))))
 
 (defmacro pstring-do-slices ((pstring substring &optional props start end result) &body body)
+  "Iterates over the slices of PSTRING.
+SUBSTRING is bound to the substring starting at START and ending at END in PSTRING
+PROPS is bound to a plist containing the properties active for SUBSTRING
+RESULT can be bound to a form whose result will be returned at the end of the loop."
   (once-only (pstring)
     (with-gensyms (sidxs ssub)
       (let ((s (or start (gensym)))
@@ -162,13 +205,17 @@
 	     ,@body))))))
 
 (defun pstring= (pstring1 pstring2)
+  "Returns T if pstring1 and pstring2 are string=. Properties are not taken into account."
   (string= (pstring-string pstring1)
 	   (pstring-string pstring2)))
 
 (defun set-equalp (s1 s2)
+  "Returns T if S1 and S2 contain the same elements. The elements are tested using equalp."
   (not (set-exclusive-or s1 s2 :test #'equalp)))
 
 (defun pstring-equal (s1 s2)
+  "Returns T if S1 and S2 have the same properties if S1 and S2 are
+pstring= and they have the same properties."
   (and (pstring= s1 s2)
        (let (res)
 	 (dotimes (i (pstring-length s1) (not (some #'null res)))
@@ -177,6 +224,7 @@
 		 res)))))
 
 (defun pstring-concat-2 (s1 s2)
+  "Concatenates S1 and S2."
   (let* ((str (concatenate 'string
 			   (pstring-string s1)
 			   (pstring-string s2)))
@@ -189,121 +237,9 @@
     (cons str plist)))
 				       
 (defun pstring-concat (&rest pstrings)
+  "Concatenates PSTRINGS."
   (reduce #'pstring-concat-2 pstrings))
 
-;;;; Exports 
-(export 'pstring)
-(export 'pstring-do)
-(export 'pstring-do-slices)
-(export 'pstring-get-property)
-(export 'pstring-put-property)
-(export 'pstring-put-properties)
-(export 'pstring-propertize)
-(export 'pstring-elt)
-(export 'pstring-substring)
-(export 'pstring-concat)
-(export 'pstring-length)
-(export 'pstring=)
 
-;;;; Tests
-(def-suite pstring
-    :description "Checking pstring related functions")
-
-(defun ii (s e)
-  (assert (> e s))
-  (let (res)
-    (do ((i s (1+ i)))
-	((= i e) (nreverse res))
-      (push i res))))
-
-
-
-
-
-
-(in-suite pstring)
-
-(test pstring-get-properties
-  (let ((s (pstring "foobarbaz" '(3 6 :face someface :otherprop othervalue))))
-    (dolist (i (ii 3 6))
-      (is (set-equalp (pstring-get-properties s i)
-		      '(:face someface :otherprop othervalue))))
-    (dolist (i (set-difference (ii 0 (pstring-length s))
-			       (ii 3 6)))
-      (is (null (pstring-get-properties s i))))))
-    
-(test pstring-get-property
-  (let ((s (pstring "foobarbaz" '(3 6 :face someface :otherprop othervalue))))
-    (dolist (i (ii 3 6))
-      (is (eq (pstring-get-property s :face i)
-	      'someface))
-      (is (eq (pstring-get-property s :otherprop i)
-	      'othervalue))
-      (is (null (pstring-get-property s :exampleprop i))))
-    (dolist (i (set-difference (ii 0 (pstring-length s))
-			       (ii 3 6)))
-      (is (null (pstring-get-property s :face i)))
-      (is (null (pstring-get-property s :otherprop i))))))
-  
-
-(test pstring-put-property
-  (let ((s (pstring "foobarbaz" '(3 4 :face foo))))
-    (let ((sp (pstring-put-property s 2 4 :x 1)))
-      (dolist (i (ii 2 4))
-	(is (equalp (pstring-get-property sp :x i) 1)))
-      (dolist (i (append (ii 0 2) (ii 4 (pstring-length s))))
-	(is (null (pstring-get-property sp :x i)))))))
-
-(test pstring=
-  (is (pstring= "foobar" (pstring "foobar")))
-  (is (pstring= "foobar" (pstring "foobar" '(0 3 :face foo))))
-  (is (not (pstring= "foobar" "foobaz")))
-  (is (not (pstring= "foobar" (pstring "foobaz" '(0 3 :face foo))))))
-
-(test pstring-elt
-  (is (char= (pstring-elt "foobar" 2) #\o))
-  (is (char= (pstring-elt (pstring "foobar" '(0 3 :face foo)) 2) #\o)))
-
-(test pstring-do
-  (let ((s (pstring "foobarbaz" '(3 6 :face foo))))
-    (pstring-do (s char props index)
-      (is (set-equalp props (pstring-get-properties s index)))
-      (is (char= char (elt (pstring-string s) index))))))
-
-(test pstring-equal
-  (is (pstring-equal (pstring "foobarbaz") "foobarbaz"))
-  (is (pstring-equal (pstring "foobarbaz" '(0 1 :face foo) '(1 2 :face foo))
-		     (pstring "foobarbaz" '(0 2 :face foo))))
-  (is (not (pstring-equal "foobar" "foobaz")))
-  (is (not (pstring-equal (pstring "foobarbaz" '(0 1 :face foo))
-			  (pstring "foobarbaz" '(0 2 :face foo)))))
-			      
-  (is (not (pstring-equal (pstring "foobarbaz" '(0 1 :face foo))
-			  (pstring "foobarbaz" '(0 1 :face bar)))))
-  
-  (is (not (pstring-equal (pstring "foobarbaz" '(0 1 :face foo))
-			  (pstring "foobarbaz" '(0 1 :face bar)))))
-  (is (not (pstring-equal (pstring "foobarbaz" '(0 1 :face foo) '(1 2 :face bar))
-			  (pstring "foobarbaz" '(0 1 :face foo))))))
-  
-    
-    
-(test pstring-substring
-  (let ((s (pstring "foobarbaz" '(0 3 :face foo) '(3 6 :face bar))))
-    (is (pstring-equal (pstring-substring s 2 4)
-		       (pstring "ob" '(0 1 :face foo) '(1 2 :face bar))))))
-
-(test pstring-do-slices
-  (let ((s (pstring "foobarbaz" '(3 6 :face foo)))
-	res)
-    (pstring-do-slices (s sub props)
-      (push (list sub props) res))
-    (setq res (nreverse res))
-    (is (= (length res) 3))
-    (is (string= (car (first res)) "foo"))
-    (is (string= (car (second res)) "bar"))
-    (is (string= (car (third res)) "baz"))
-    (is (set-equalp (cadr (first res)) nil))
-    (is (set-equalp (cadr (second res)) '(:face foo)))
-    (is (set-equalp (cadr (third res)) nil))))
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; pstring.lisp ends here

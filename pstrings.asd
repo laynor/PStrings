@@ -4,7 +4,7 @@
   :author "Alessandro Piras <laynor@gmail.com>"
   ;; :licence "MIT Licence"
   :serial t
-  :depends-on (:alexandria :fiveam)
+  :depends-on (:alexandria)
   :components ((:file "package")
 	       (:file "pstring")
 	       (:file "faces")))

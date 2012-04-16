@@ -89,6 +89,10 @@
 (defmethod face-property ((face string) property)
   (gethash property (lookup-face face)))
 
+(defun face-documentation (face)
+  "Returns the documentation for FACE."
+  (face-property face :documentation))
+
 (defmethod (setf face-property) (value (face hash-table) property)
   (setf (gethash property face) value))
 (defmethod (setf face-property) (value (face string) property)

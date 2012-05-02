@@ -57,8 +57,9 @@
 ;;; Merge inherited faces
 ;;; Assoociate face with names
 (in-package :pstrings)
+(declaim (optimize (speed 0) (debug 3)))
 
-(defparameter *face-hash* (make-hash-table :test #'equal))
+(defvar *face-hash* (make-hash-table :test #'equal))
 
 ;;; Save the association name->face
 (defgeneric save-face (face name)
@@ -161,21 +162,24 @@ FACE1 if it is defined, otherwise from face2."
 
 (defun merge-face-ancestors-1 (face)
   "Merges FACE with its ancestors."
-  (let ((face (reduce #'merge-faces
-		      (cons face (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
-					  (face-property face :inherit))))))
-    (remhash :inherit face)
-    face))
+  (let* ((ancestors (face-property face :inherit))
+	 (face-1 (reduce #'merge-faces
+			(cons (lookup-face face) (and ancestors (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
+							  ancestors))))))
+    (remhash :inherit face-1)
+    face-1))
 (defun merge-face-ancestors (face)
   "Merges FACE with its ancestors, using the face named `default' as the base ancestor."
-  (let ((face (reduce #'merge-faces
-		      (cons face
-			    (append
-			     (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
-				     (face-property face :inherit))
-			     (list (lookup-face :default)))))))
-    (remhash :inherit face)
-    face))
+  (let* ((ancestors (face-property face :inherit))
+	 (face-1 (reduce #'merge-faces
+			 (cons (lookup-face face)
+			       (append
+				(and ancestors
+				     (mapcar (compose #'merge-face-ancestors-1 #'lookup-face)
+					     ancestors))
+				(list (lookup-face :default)))))))
+    (remhash :inherit face-1)
+    face-1))
 
 
 (defface default)
